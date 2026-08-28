@@ -108,8 +108,9 @@ namespace WaypointTeleport
             capi = api;
             cChannel = api.Network.GetChannel("waypointteleport");
             
-            // Usamos CharacterControls para asegurarnos de que aparezca en el menú del juego
-            api.Input.RegisterHotKey("tpwaypoint", "Viaje a Waypoint", GlKeys.T, HotkeyType.CharacterControls);
+            // Registramos el atajo con ctrlPressed = true
+            // Los parámetros son: código, nombre_mostrar, tecla, categoría, alt, ctrl, shift
+            api.Input.RegisterHotKey("tpwaypoint", "Viaje a Waypoint (Requiere mapa abierto)", GlKeys.T, HotkeyType.CharacterControls, false, true, false);
             api.Input.SetHotKeyHandler("tpwaypoint", OnTeleportHotkey);
         }
 
