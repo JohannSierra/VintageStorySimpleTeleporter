@@ -20,8 +20,15 @@
       <Private>false</Private>
     </Reference>
 
-    <!-- Referencia de protobuf-net para los paquetes de red -->
-    <PackageReference Include="protobuf-net" Version="3.2.30" />
+    <!-- Usamos la misma librería protobuf-net que trae el juego para evitar conflictos de versión -->
+    <Reference Include="protobuf-net">
+      <HintPath>$(AppData)\Vintagestory\Lib\protobuf-net.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="protobuf-net.Core" Condition="Exists('$(AppData)\Vintagestory\Lib\protobuf-net.Core.dll')">
+      <HintPath>$(AppData)\Vintagestory\Lib\protobuf-net.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
