@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
 using ProtoBuf;
 using Vintagestory.API.Client;
@@ -17,11 +18,10 @@ namespace WaypointTeleport
         public double Y;
         public double Z;
         public string WaypointName;
-        // Nueva variable para decirle al servidor cómo elegimos pagar
         public string SelectedGearType; 
     }
 
-    // 2. Definimos la interfaz (Pop-up con opciones múltiples)
+    // 2. Interfaz de Confirmación (El Pop-up de pago)
     public class TeleportConfirmDialog : GuiDialog
     {
         public override string ToggleKeyCombinationCode => null;
@@ -37,12 +37,10 @@ namespace WaypointTeleport
 
         private void SetupDialog()
         {
-            // Tamaño y alineación de la ventana
             ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
             bgBounds.BothSizing = ElementSizing.FitToChildren;
 
-            // Ajustamos el tamaño para acomodar botones en forma de lista
             ElementBounds textBounds = ElementBounds.Fixed(0, 40, 350, 40);
             
             ElementBounds buttonTemporalBounds = ElementBounds.Fixed(0, 90, 350, 30);
@@ -60,28 +58,80 @@ namespace WaypointTeleport
                 .Compose();
         }
 
-        private bool OnUseTemporal()
+        private bool OnUseTemporal() { onConfirm?.Invoke("gear-temporal"); TryClose(); return true; }
+        private bool OnUseRusty() { onConfirm?.Invoke("gear-rusty"); TryClose(); return true; }
+        private bool OnNo() { TryClose(); return true; }
+    }
+
+    // 3. NUEVA Interfaz: Lista de Waypoints 
+    public class WaypointListDialog : GuiDialog
+    {
+        public override string ToggleKeyCombinationCode => null;
+        private IList waypoints;
+        private Action<dynamic> onWaypointSelected;
+        private int currentPage = 0;
+        private const int itemsPerPage = 8; // Muestra 8 waypoints por página para no salir de la pantalla
+
+        public WaypointListDialog(ICoreClientAPI capi, IList waypoints, Action<dynamic> onWaypointSelected) : base(capi)
         {
-            onConfirm?.Invoke("gear-temporal");
-            TryClose();
-            return true;
+            this.waypoints = waypoints ?? new List<object>();
+            this.onWaypointSelected = onWaypointSelected;
+            SetupDialog();
         }
 
-        private bool OnUseRusty()
+        private void SetupDialog()
         {
-            onConfirm?.Invoke("gear-rusty");
-            TryClose();
-            return true;
+            ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
+            ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
+            bgBounds.BothSizing = ElementSizing.FitToChildren;
+
+            var composer = capi.Gui.CreateCompo("wplist", dialogBounds)
+                .AddShadedDialogBG(bgBounds)
+                .AddDialogTitleBar("Mis Waypoints", () => TryClose())
+                .AddDynamicText("Selecciona tu destino:", CairoFont.WhiteSmallText(), ElementBounds.Fixed(0, 30, 400, 30), "text");
+
+            int yOffset = 70;
+            int start = currentPage * itemsPerPage;
+            int end = Math.Min(start + itemsPerPage, waypoints.Count);
+
+            for (int i = start; i < end; i++)
+            {
+                dynamic wp = waypoints[i];
+                string title = wp.Title ?? "Waypoint " + i;
+                dynamic wpRef = wp;
+                
+                composer.AddSmallButton(title, () => OnWaypointClick(wpRef), ElementBounds.Fixed(0, yOffset, 400, 30), "btn_" + i);
+                yOffset += 40;
+            }
+
+            if (currentPage > 0)
+            {
+                composer.AddSmallButton("< Anterior", OnPrev, ElementBounds.Fixed(0, yOffset, 150, 30));
+            }
+            if (end < waypoints.Count)
+            {
+                composer.AddSmallButton("Siguiente >", OnNext, ElementBounds.Fixed(250, yOffset, 150, 30));
+            }
+            if (waypoints.Count == 0)
+            {
+                composer.AddDynamicText("No tienes ningún waypoint guardado.", CairoFont.WhiteSmallText(), ElementBounds.Fixed(0, yOffset, 400, 30), "notfound");
+            }
+
+            SingleComposer = composer.Compose();
         }
 
-        private bool OnNo()
+        private bool OnPrev() { currentPage--; SetupDialog(); return true; }
+        private bool OnNext() { currentPage++; SetupDialog(); return true; }
+
+        private bool OnWaypointClick(dynamic wp)
         {
+            onWaypointSelected?.Invoke(wp);
             TryClose();
             return true;
         }
     }
 
-    // 3. Sistema Central del Mod
+    // 4. Sistema Central del Mod
     public class WaypointTeleportSystem : ModSystem
     {
         private ICoreServerAPI sapi;
@@ -109,38 +159,51 @@ namespace WaypointTeleport
             cChannel = api.Network.GetChannel("waypointteleport");
             
             // Registramos el atajo con ctrlPressed = true
-            // Los parámetros son: código, nombre_mostrar, tecla, categoría, alt, ctrl, shift
-            api.Input.RegisterHotKey("tpwaypoint", "Viaje a Waypoint (Requiere mapa abierto)", GlKeys.T, HotkeyType.CharacterControls, false, true, false);
+            api.Input.RegisterHotKey("tpwaypoint", "Menú de Viaje a Waypoint (Ctrl+T)", GlKeys.T, HotkeyType.CharacterControls, false, true, false);
             api.Input.SetHotKeyHandler("tpwaypoint", OnTeleportHotkey);
         }
 
         private bool OnTeleportHotkey(KeyCombination t1)
         {
             var mapManager = capi.ModLoader.GetModSystem<Vintagestory.GameContent.WorldMapManager>();
-            if (mapManager == null) return false;
+            if (mapManager == null) 
+            {
+                capi.ShowChatMessage("No se pudo acceder al mapa.");
+                return true;
+            }
 
-            // En lugar de verificar si está abierto (lo cual puede dar error dependiendo de la versión de VS), 
-            // vamos directamente a la capa de waypoints. Si el mapa está cerrado, hoveredWaypoint simplemente será null.
             var wpLayer = mapManager.MapLayers.FirstOrDefault(l => l.GetType().Name == "WaypointMapLayer");
-            if (wpLayer == null) return false;
+            if (wpLayer == null) 
+            {
+                capi.ShowChatMessage("Error: No se encontró la capa de waypoints.");
+                return true; 
+            }
 
+            IList waypointsList = null;
             try 
             {
-                object hoveredWp = null;
-                var field = wpLayer.GetType().GetField("hoveredWaypoint", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                // Buscar la lista de waypoints dinámicamente
+                var prop = wpLayer.GetType().GetProperty("Waypoints", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (prop != null) waypointsList = prop.GetValue(wpLayer) as IList;
                 
-                if (field != null)
+                if (waypointsList == null) 
                 {
-                    hoveredWp = field.GetValue(wpLayer);
+                    var field = wpLayer.GetType().GetField("ownWaypoints", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (field != null) waypointsList = field.GetValue(wpLayer) as IList;
                 }
+            }
+            catch (Exception ex)
+            {
+                capi.Logger.Error("Error buscando waypoints: " + ex);
+            }
 
-                if (hoveredWp != null)
-                {
-                    dynamic wp = hoveredWp;
+            if (waypointsList != null)
+            {
+                // Abrimos el NUEVO menú de lista en lugar de comprobar el ratón
+                var dialog = new WaypointListDialog(capi, waypointsList, (wp) => {
                     string title = wp.Title ?? "Waypoint";
                     
-                    // Mostrar Pop-up de selección de engranes
-                    var dialog = new TeleportConfirmDialog(capi, title, (selectedGear) => {
+                    var confirmDialog = new TeleportConfirmDialog(capi, title, (selectedGear) => {
                         cChannel.SendPacket(new TeleportRequestPacket {
                             X = wp.Position.X,
                             Y = wp.Position.Y,
@@ -150,20 +213,17 @@ namespace WaypointTeleport
                         });
                     });
                     
-                    dialog.TryOpen();
-                    
-                    // Retornamos true para decirle al juego "Yo usé esta tecla, NO abras el chat"
-                    return true;
-                }
+                    confirmDialog.TryOpen();
+                });
+                
+                dialog.TryOpen();
             }
-            catch (Exception ex)
+            else
             {
-                capi.Logger.Error("Error al leer el waypoint del mapa: " + ex);
+                capi.ShowChatMessage("No se pudo obtener la lista de waypoints.");
             }
             
-            // Si el cursor no está sobre un waypoint o el mapa está cerrado, retornamos false
-            // silenciosamente para que la tecla 'T' funcione normal (abrir el chat).
-            return false; 
+            return true; 
         }
 
         private void OnTeleportRequest(IServerPlayer player, TeleportRequestPacket packet)
@@ -172,7 +232,6 @@ namespace WaypointTeleport
             int amountNeeded = 0;
             string itemCode = packet.SelectedGearType;
 
-            // Determinar costo según la selección del cliente
             if (itemCode == "gear-temporal")
             {
                 amountNeeded = 1;
@@ -183,12 +242,8 @@ namespace WaypointTeleport
                 amountNeeded = 25;
                 delayMs = 20000;
             }
-            else
-            {
-                return; // Paquete inválido
-            }
+            else return;
 
-            // Comprobar si el jugador tiene los fondos de la opción que eligió
             if (HasItem(player, itemCode, amountNeeded))
             {
                 string nameDisplay = itemCode == "gear-temporal" ? "engrane temporal" : "engranes oxidados";
@@ -196,16 +251,12 @@ namespace WaypointTeleport
             }
             else
             {
-                // Si eligió una opción pero no tiene el dinero
                 string displayAmount = itemCode == "gear-temporal" ? "1 Temporal" : "25 Oxidados";
                 player.SendMessage(GlobalConstants.GeneralChatGroup, $"No tienes suficientes fondos para el método elegido (Requiere {displayAmount}).", EnumChatType.CommandError);
                 return;
             }
 
-            // Registrar temporizador
             sapi.Event.RegisterCallback((dt) => {
-                
-                // Cobrar justo antes de saltar
                 if (TryConsumeItem(player, itemCode, amountNeeded))
                 {
                     player.Entity.TeleportToDouble(packet.X, player.Entity.Pos.Y, packet.Z);
@@ -215,7 +266,6 @@ namespace WaypointTeleport
                 {
                     player.SendMessage(GlobalConstants.GeneralChatGroup, "El viaje falló: perdiste o moviste los engranes durante la preparación.", EnumChatType.CommandError);
                 }
-
             }, delayMs);
         }
 
@@ -227,10 +277,7 @@ namespace WaypointTeleport
                 foreach (var slot in inventory)
                 {
                     if (slot.Empty) continue;
-                    if (slot.Itemstack.Collectible.Code.Path == itemCode)
-                    {
-                        amountFound += slot.StackSize;
-                    }
+                    if (slot.Itemstack.Collectible.Code.Path == itemCode) amountFound += slot.StackSize;
                 }
             }
             return amountFound >= amountNeeded;
@@ -246,7 +293,6 @@ namespace WaypointTeleport
                 foreach (var slot in inventory)
                 {
                     if (slot.Empty) continue;
-                    
                     if (slot.Itemstack.Collectible.Code.Path == itemCode)
                     {
                         amountFound += slot.StackSize;
@@ -271,7 +317,6 @@ namespace WaypointTeleport
                 player.BroadcastPlayerData(true);
                 return true;
             }
-
             return false;
         }
     }
