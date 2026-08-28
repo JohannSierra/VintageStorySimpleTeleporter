@@ -37,23 +37,25 @@ namespace WaypointTeleport
 
         private void SetupDialog()
         {
-            ElementBounds dialogBounds = ElementBounds.Fixed(EnumDialogArea.CenterMiddle, 0, 0, 400, 250);
+            ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
+            bgBounds.BothSizing = ElementSizing.FitToChildren;
+            dialogBounds.WithChild(bgBounds);
 
-            ElementBounds textBounds = ElementBounds.Fixed(0, 40, 350, 40);
-            
-            ElementBounds buttonTemporalBounds = ElementBounds.Fixed(0, 90, 350, 30);
-            ElementBounds buttonRustyBounds = ElementBounds.Fixed(0, 130, 350, 30);
-            ElementBounds buttonCancelBounds = ElementBounds.Fixed(0, 180, 350, 30);
+            ElementBounds textBounds = ElementBounds.Fixed(0, 30, 350, 40);
+            ElementBounds buttonTemporalBounds = ElementBounds.Fixed(0, 80, 350, 30);
+            ElementBounds buttonRustyBounds = ElementBounds.Fixed(0, 120, 350, 30);
+            ElementBounds buttonCancelBounds = ElementBounds.Fixed(0, 170, 350, 30);
 
             SingleComposer = capi.Gui.CreateCompo("tpconfirm", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
                 .AddDialogTitleBar("Método de Viaje", () => TryClose())
-                .AddDynamicText($"Viajar a '{waypointName}'. Elige tu forma de pago:", CairoFont.WhiteSmallText(), textBounds, "text")
-                
-                .AddSmallButton("Pagar 1 Engrane Temporal (Espera 10s)", OnUseTemporal, buttonTemporalBounds)
-                .AddSmallButton("Pagar 25 Engranes Oxidados (Espera 20s)", OnUseRusty, buttonRustyBounds)
-                .AddSmallButton("Cancelar", OnNo, buttonCancelBounds)
+                .BeginChildElements(bgBounds)
+                    .AddDynamicText($"Viajar a '{waypointName}'. Elige tu forma de pago:", CairoFont.WhiteSmallText(), textBounds, "text")
+                    .AddSmallButton("Pagar 1 Engrane Temporal (Espera 10s)", OnUseTemporal, buttonTemporalBounds)
+                    .AddSmallButton("Pagar 25 Engranes Oxidados (Espera 20s)", OnUseRusty, buttonRustyBounds)
+                    .AddSmallButton("Cancelar", OnNo, buttonCancelBounds)
+                .EndChildElements()
                 .Compose();
         }
 
@@ -80,23 +82,22 @@ namespace WaypointTeleport
 
         private void SetupDialog()
         {
-            int yOffset = 70;
-            int start = currentPage * itemsPerPage;
-            int end = Math.Min(start + itemsPerPage, waypoints.Count);
-
-            int itemsToShow = waypoints.Count == 0 ? 1 : (end - start);
-            bool hasPagination = waypoints.Count > itemsPerPage;
-            
-            int totalHeight = yOffset + (itemsToShow * 40) + (hasPagination ? 40 : 0) + 20;
-
-            ElementBounds dialogBounds = ElementBounds.Fixed(EnumDialogArea.CenterMiddle, 0, 0, 420, totalHeight);
+            ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
+            bgBounds.BothSizing = ElementSizing.FitToChildren;
+            dialogBounds.WithChild(bgBounds);
+
+            ElementBounds textBounds = ElementBounds.Fixed(0, 30, 400, 30);
 
             var composer = capi.Gui.CreateCompo("wplist", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
                 .AddDialogTitleBar("Mis Waypoints", () => TryClose())
-                .AddDynamicText("Selecciona tu destino:", CairoFont.WhiteSmallText(), ElementBounds.Fixed(0, 30, 400, 30), "text");
+                .BeginChildElements(bgBounds)
+                    .AddDynamicText("Selecciona tu destino:", CairoFont.WhiteSmallText(), textBounds, "text");
 
+            int yOffset = 70;
+            int start = currentPage * itemsPerPage;
+            int end = Math.Min(start + itemsPerPage, waypoints.Count);
 
             for (int i = start; i < end; i++)
             {
@@ -104,26 +105,36 @@ namespace WaypointTeleport
                 string title = wp.Title ?? "Waypoint " + i;
                 dynamic wpRef = wp;
                 
-                composer.AddSmallButton(title, () => OnWaypointClick(wpRef), ElementBounds.Fixed(0, yOffset, 400, 30), EnumButtonStyle.Normal, "btn_" + i);
+                ElementBounds btnBounds = ElementBounds.Fixed(0, yOffset, 400, 30);
+                composer.AddSmallButton(title, () => OnWaypointClick(wpRef), btnBounds, EnumButtonStyle.Normal, "btn_" + i);
                 yOffset += 40;
             }
 
+            bool hasPagination = waypoints.Count > itemsPerPage;
             if (hasPagination)
             {
                 if (currentPage > 0)
-                    composer.AddSmallButton("< Anterior", OnPrev, ElementBounds.Fixed(0, yOffset, 150, 30));
+                {
+                    ElementBounds prevBounds = ElementBounds.Fixed(0, yOffset, 150, 30);
+                    composer.AddSmallButton("< Anterior", OnPrev, prevBounds);
+                }
                 
                 if (end < waypoints.Count)
-                    composer.AddSmallButton("Siguiente >", OnNext, ElementBounds.Fixed(250, yOffset, 150, 30));
+                {
+                    ElementBounds nextBounds = ElementBounds.Fixed(250, yOffset, 150, 30);
+                    composer.AddSmallButton("Siguiente >", OnNext, nextBounds);
+                }
                     
                 yOffset += 40;
             }
             
             if (waypoints.Count == 0)
             {
-                composer.AddDynamicText("No tienes ningún waypoint guardado.", CairoFont.WhiteSmallText(), ElementBounds.Fixed(0, yOffset, 400, 30), "notfound");
+                ElementBounds nfBounds = ElementBounds.Fixed(0, yOffset, 400, 30);
+                composer.AddDynamicText("No tienes ningún waypoint guardado.", CairoFont.WhiteSmallText(), nfBounds, "notfound");
             }
 
+            composer.EndChildElements();
             SingleComposer = composer.Compose();
         }
 
