@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- La ruta de salida para cuando lo compiles -->
+    <OutputPath>..\Mods\WaypointTeleportMod\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Referencia a la API principal del juego -->
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(AppData)\Vintagestory\VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    
+    <!-- Referencia para el mapa y waypoints -->
+    <Reference Include="VSEssentials">
+      <HintPath>$(AppData)\Vintagestory\Mods\VSEssentials.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- Referencia de protobuf-net para los paquetes de red -->
+    <PackageReference Include="protobuf-net" Version="3.2.30" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="modinfo.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>
