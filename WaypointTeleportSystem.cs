@@ -108,7 +108,8 @@ namespace WaypointTeleport
             capi = api;
             cChannel = api.Network.GetChannel("waypointteleport");
             
-            api.Input.RegisterHotKey("tpwaypoint", "Teletransportarse al Waypoint (Requiere mapa abierto)", GlKeys.T, HotkeyType.GUIOrOtherControls);
+            // Usamos CharacterControls para asegurarnos de que aparezca en el menú del juego
+            api.Input.RegisterHotKey("tpwaypoint", "Viaje a Waypoint", GlKeys.T, HotkeyType.CharacterControls);
             api.Input.SetHotKeyHandler("tpwaypoint", OnTeleportHotkey);
         }
 
@@ -117,19 +118,15 @@ namespace WaypointTeleport
             var mapManager = capi.ModLoader.GetModSystem<Vintagestory.GameContent.WorldMapManager>();
             if (mapManager == null) return false;
 
-            if (!mapManager.IsOpened)
-            {
-                capi.ShowChatMessage("Debes tener el mapa abierto para usar el viaje temporal.");
-                return false;
-            }
-
+            // En lugar de verificar si está abierto (lo cual puede dar error dependiendo de la versión de VS), 
+            // vamos directamente a la capa de waypoints. Si el mapa está cerrado, hoveredWaypoint simplemente será null.
             var wpLayer = mapManager.MapLayers.FirstOrDefault(l => l.GetType().Name == "WaypointMapLayer");
             if (wpLayer == null) return false;
 
             try 
             {
                 object hoveredWp = null;
-                var field = wpLayer.GetType().GetField("hoveredWaypoint", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var field = wpLayer.GetType().GetField("hoveredWaypoint", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
                 
                 if (field != null)
                 {
@@ -153,20 +150,19 @@ namespace WaypointTeleport
                     });
                     
                     dialog.TryOpen();
+                    
+                    // Retornamos true para decirle al juego "Yo usé esta tecla, NO abras el chat"
                     return true;
-                }
-                else
-                {
-                    capi.ShowChatMessage("Coloca el cursor exactamente sobre el ícono de un waypoint y presiona T.");
                 }
             }
             catch (Exception ex)
             {
-                capi.Logger.Error("Error al intentar teletransportarse al waypoint: " + ex);
-                capi.ShowChatMessage("Hubo un error al leer el waypoint del mapa.");
+                capi.Logger.Error("Error al leer el waypoint del mapa: " + ex);
             }
             
-            return true; 
+            // Si el cursor no está sobre un waypoint o el mapa está cerrado, retornamos false
+            // silenciosamente para que la tecla 'T' funcione normal (abrir el chat).
+            return false; 
         }
 
         private void OnTeleportRequest(IServerPlayer player, TeleportRequestPacket packet)
