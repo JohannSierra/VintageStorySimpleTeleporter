@@ -4,7 +4,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- La ruta de salida para cuando lo compiles -->
-    <OutputPath>..\Mods\WaypointTeleportMod\</OutputPath>
+    <OutputPath>bin\$(Configuration)\Mods\mod</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,3 +37,5 @@
     </None>
   </ItemGroup>
 </Project>
+
+
