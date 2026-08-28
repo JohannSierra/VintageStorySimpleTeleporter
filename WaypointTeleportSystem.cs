@@ -289,11 +289,21 @@ namespace WaypointTeleport
             }, delayMs);
         }
 
+        private IInventory[] GetPlayerInventories(IServerPlayer player)
+        {
+            return new IInventory[] {
+                player.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName),
+                player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName),
+                player.InventoryManager.GetOwnInventory(GlobalConstants.characterInvClassName)
+            };
+        }
+
         private bool HasItem(IServerPlayer player, string itemCode, int amountNeeded)
         {
             int amountFound = 0;
-            foreach (var inventory in player.InventoryManager.Inventories.Values)
+            foreach (var inventory in GetPlayerInventories(player))
             {
+                if (inventory == null) continue;
                 foreach (var slot in inventory)
                 {
                     if (slot.Empty) continue;
@@ -308,8 +318,9 @@ namespace WaypointTeleport
             int amountFound = 0;
             List<ItemSlot> slotsToConsume = new List<ItemSlot>();
 
-            foreach (var inventory in player.InventoryManager.Inventories.Values)
+            foreach (var inventory in GetPlayerInventories(player))
             {
+                if (inventory == null) continue;
                 foreach (var slot in inventory)
                 {
                     if (slot.Empty) continue;
