@@ -37,9 +37,8 @@ namespace WaypointTeleport
 
         private void SetupDialog()
         {
-            ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
+            ElementBounds dialogBounds = ElementBounds.Fixed(EnumDialogArea.CenterMiddle, 0, 0, 400, 250);
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
-            bgBounds.BothSizing = ElementSizing.FitToChildren;
 
             ElementBounds textBounds = ElementBounds.Fixed(0, 40, 350, 40);
             
@@ -81,9 +80,17 @@ namespace WaypointTeleport
 
         private void SetupDialog()
         {
-            ElementBounds dialogBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
+            int yOffset = 70;
+            int start = currentPage * itemsPerPage;
+            int end = Math.Min(start + itemsPerPage, waypoints.Count);
+
+            int itemsToShow = waypoints.Count == 0 ? 1 : (end - start);
+            bool hasPagination = waypoints.Count > itemsPerPage;
+            
+            int totalHeight = yOffset + (itemsToShow * 40) + (hasPagination ? 40 : 0) + 20;
+
+            ElementBounds dialogBounds = ElementBounds.Fixed(EnumDialogArea.CenterMiddle, 0, 0, 420, totalHeight);
             ElementBounds bgBounds = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
-            bgBounds.BothSizing = ElementSizing.FitToChildren;
 
             var composer = capi.Gui.CreateCompo("wplist", dialogBounds)
                 .AddShadedDialogBG(bgBounds)
@@ -104,14 +111,17 @@ namespace WaypointTeleport
                 yOffset += 40;
             }
 
-            if (currentPage > 0)
+            if (hasPagination)
             {
-                composer.AddSmallButton("< Anterior", OnPrev, ElementBounds.Fixed(0, yOffset, 150, 30));
+                if (currentPage > 0)
+                    composer.AddSmallButton("< Anterior", OnPrev, ElementBounds.Fixed(0, yOffset, 150, 30));
+                
+                if (end < waypoints.Count)
+                    composer.AddSmallButton("Siguiente >", OnNext, ElementBounds.Fixed(250, yOffset, 150, 30));
+                    
+                yOffset += 40;
             }
-            if (end < waypoints.Count)
-            {
-                composer.AddSmallButton("Siguiente >", OnNext, ElementBounds.Fixed(250, yOffset, 150, 30));
-            }
+            
             if (waypoints.Count == 0)
             {
                 composer.AddDynamicText("No tienes ningún waypoint guardado.", CairoFont.WhiteSmallText(), ElementBounds.Fixed(0, yOffset, 400, 30), "notfound");
