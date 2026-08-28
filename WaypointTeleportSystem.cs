@@ -97,9 +97,6 @@ namespace WaypointTeleport
                 .AddDialogTitleBar("Mis Waypoints", () => TryClose())
                 .AddDynamicText("Selecciona tu destino:", CairoFont.WhiteSmallText(), ElementBounds.Fixed(0, 30, 400, 30), "text");
 
-            int yOffset = 70;
-            int start = currentPage * itemsPerPage;
-            int end = Math.Min(start + itemsPerPage, waypoints.Count);
 
             for (int i = start; i < end; i++)
             {
