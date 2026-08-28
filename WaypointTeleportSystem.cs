@@ -182,14 +182,16 @@ namespace WaypointTeleport
             IList waypointsList = null;
             try 
             {
-                // Buscar la lista de waypoints dinámicamente
-                var prop = wpLayer.GetType().GetProperty("Waypoints", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                if (prop != null) waypointsList = prop.GetValue(wpLayer) as IList;
+                var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                
+                // Vintage Story almacena los waypoints como 'Field' (no Property), llamado 'ownWaypoints' o 'Waypoints'.
+                var field1 = wpLayer.GetType().GetField("ownWaypoints", flags);
+                if (field1 != null) waypointsList = field1.GetValue(wpLayer) as IList;
                 
                 if (waypointsList == null) 
                 {
-                    var field = wpLayer.GetType().GetField("ownWaypoints", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    if (field != null) waypointsList = field.GetValue(wpLayer) as IList;
+                    var field2 = wpLayer.GetType().GetField("Waypoints", flags);
+                    if (field2 != null) waypointsList = field2.GetValue(wpLayer) as IList;
                 }
             }
             catch (Exception ex)
