@@ -100,7 +100,7 @@ namespace WaypointTeleport
                 string title = wp.Title ?? "Waypoint " + i;
                 dynamic wpRef = wp;
                 
-                composer.AddSmallButton(title, () => OnWaypointClick(wpRef), ElementBounds.Fixed(0, yOffset, 400, 30), "btn_" + i);
+                composer.AddSmallButton(title, () => OnWaypointClick(wpRef), ElementBounds.Fixed(0, yOffset, 400, 30), EnumButtonStyle.Normal, "btn_" + i);
                 yOffset += 40;
             }
 
