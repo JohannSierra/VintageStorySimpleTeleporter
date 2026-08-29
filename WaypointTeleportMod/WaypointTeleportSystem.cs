@@ -279,7 +279,8 @@ namespace WaypointTeleport
             sapi.Event.RegisterCallback((dt) => {
                 if (TryConsumeItem(player, itemCode, amountNeeded))
                 {
-                    player.Entity.TeleportToDouble(packet.X, player.Entity.Pos.Y, packet.Z);
+                    // Usamos packet.Y (la altura real del waypoint) en lugar de la altura actual del jugador
+                    player.Entity.TeleportToDouble(packet.X, packet.Y, packet.Z);
                     player.SendMessage(GlobalConstants.GeneralChatGroup, $"Viaje temporal exitoso hacia {packet.WaypointName}.", EnumChatType.Notification);
                 }
                 else

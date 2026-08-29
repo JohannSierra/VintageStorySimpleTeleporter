@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "waypointteleport",
+  "name": "Waypoint Teleport (Engranes)",
+  "authors": [ "redbi" ],
+  "description": "Permite teletransportarse a un waypoint en el mapa a cambio de 1 engrane temporal o 25 oxidados.",
+  "version": "1.0.0",
+  "dependencies": {
+    "game": "*"
+  }
+}
